@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sistema Profesional de Cotizaciones</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 40px;
+            background: #f4f6f9;
+        }
+        h1 {
+            color: #1e3a8a;
+        }
+        button {
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background: white;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            font-size: 14px;
+        }
+        th {
+            background: #1e3a8a;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f2f2f2;
+        }
+        td {
+            cursor: text;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Sistema Profesional de Cotizaciones</h1>
+
+<input type="file" id="pdfUpload" accept="application/pdf">
+<button onclick="addRow()">Agregar Fila</button>
+<button onclick="exportExcel()">Exportar a Excel</button>
+
+<table id="tabla">
+    <thead>
+        <tr>
+            <th>Descripción</th>
+            <th>Unidad</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Eliminar</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+function makeEditable(td){
+    td.contentEditable = true;
+}
+
+function addRow(des="", uni="", cant="", pre=""){
+    const tbody = document.querySelector("#tabla tbody");
+    const row = document.createElement("tr");
+    row.innerHTML = `
+        <td contenteditable="true">${des}</td>
+        <td contenteditable="true">${uni}</td>
+        <td contenteditable="true">${cant}</td>
+        <td contenteditable="true">${pre}</td>
+        <td><button onclick="this.parentElement.parentElement.remove()">X</button></td>
+    `;
+    tbody.appendChild(row);
+}
+
+function exportExcel(){
+    const table = document.getElementById("tabla");
+    const wb = XLSX.utils.table_to_book(table, {sheet:"Insumos"});
+    XLSX.writeFile(wb, "Cotizacion.xlsx");
+}
+
+document.getElementById('pdfUpload').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function() {
+        const typedarray = new Uint8Array(this.result);
+
+        pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+            pdf.getPage(1).then(function(page) {
+                page.getTextContent().then(function(textContent) {
+
+                    const text = textContent.items.map(item => item.str).join(" ");
+                    const lineas = text.split(/(?=\d+\.\d+)/);
+
+                    document.querySelector("#tabla tbody").innerHTML = "";
+
+                    lineas.forEach(linea => {
+                        const partes = linea.split(" ");
+                        if(partes.length > 5){
+                            let descripcion = partes.slice(1, 4).join(" ");
+                            let unidad = partes[4];
+                            let cantidad = partes[5];
+                            let precio = partes[6] || "";
+                            addRow(descripcion, unidad, cantidad, precio);
+                        }
+                    });
+
+                });
+            });
+        });
+    };
+
+    reader.readAsArrayBuffer(file);
+});
+</script>
+
+</body>
+</html>
